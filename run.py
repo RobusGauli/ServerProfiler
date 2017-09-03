@@ -4,8 +4,13 @@ import json
 import functools
 import itertools
 import argparse
+import os
+import random
 
 import sys
+
+from sanic import Sanic
+from sanic.response import text
 
 class ServerProfiler:
     DEFAULT_PORT = 5000
@@ -26,11 +31,23 @@ class ServerProfiler:
         
         #get the config object(dict)
         self.config = self._load_args_config()
-        self._create_app()
         self.app = None
 
         self.client_ws = {}
-                        
+        self.clients = set()
+        self.clients_alias = set()
+        self.clients_alias.update({'robus', 'rahul', 'ramesh'})
+        self.current_client = 'rahul'
+
+        self.http_server = Sanic(__name__)
+        self._create_app()
+        
+
+
+    
+    async def change(self, request):
+        return text('hi there')
+
     def _load_args_config(self):
         #return a configuration dictionary
         config = {}
@@ -81,6 +98,13 @@ class ServerProfiler:
             help='Alias for the agent Node'
         )
 
+        parser.add_argument(
+            '-c', '--clients-config',
+            action='store',
+            dest='clients_config',
+            help='Configuration file of clients registered'
+        )
+
 
         return parser.parse_args()
     
@@ -101,7 +125,26 @@ class ServerProfiler:
             self._run_as_agent()
             #also if this is agent node than it needs to act to know the 
         else:
+            #if we have to run from the parent, then we need atleast one client in the set of client alias
+            if not self.config.get('PROFILER_CLIENTS_CONFIG'):
+                print('Please specify the client configuration file')
+                sys.exit(0)
+            #self.http_server = Sanic(__name__)
+            async def change(request):
+                #this will change the current_client
+                self.current_client = random.choice(list(self.clients_alias))
+                print(self.current_client)
+                return text('changed to %s' % self.current_client)
+            self.http_server.route('/')(change)
+            self._load_client_aliases() 
             self._run_as_parent()
+
+    def _load_client_aliases(self):
+        if not os.path.exists(self.config['PROFILER_CLIENTS_CONFIG']):
+            raise ValueError('File not found at the specified path')
+        data = json.loads(open(self.config['PROFILER_CLIENTS_CONFIG']).read())
+        self.clients_alias = set(data['allowed'])
+        print(self.clients_alias)
 
     async def producer_handler(self):
     
@@ -109,17 +152,32 @@ class ServerProfiler:
             print('Connected to server node %s at port %d' % (websocket.host, websocket.port))
             while True:
                 try:
-                    await websocket.send('hi i am the client %s' % self.config.get('PROFILER_REGISTER_AS', 'Unknown'))
+                    id = self.config.get('PROFILER_REGISTER_AS', 'Unknown')
+                    await websocket.send('{"id": "%s", "data": "sample data from %s"}' % (id, id))
                     await asyncio.sleep(3)
-
-                    message = await websocket.recv()
-                    print(message+ 'from the server ')
-                    if message == 'pause':
-                        #keep on waiting until it ask you for more data
-                        while True:
-                            message = await websocket.recv()
-                            if message == 'continue':
-                                break
+                    
+                    while True:
+                        message = await websocket.recv()
+                        data = json.loads(message)
+                        allowed_current_client = data.get('current_client')
+                        if allowed_current_client == id:
+                            await websocket.send('{"id": "%s", "data": "sample data from %s"}' % (id, id))
+                            await asyncio.sleep(3)
+                    # message = await websocket.recv()
+                    # print(message + 'from the server ')
+                    # #now parse th message
+                    # data = json.loads(message)
+                    # if isinstance(data, dict):
+                    #     #get the current client
+                    #     allowed_current_client = data.get('current_client')
+                    #     if allowed_current_client != id:
+                    #         while True:
+                    #         message = await websocket.recv()
+                    #         if message == 'continue':
+                    #             break
+                    # if message == 'pause':
+                    #     #keep on waiting until it ask you for more data
+                        
                 except websockets.exceptions.ConnectionClosed:
                     print('Connection closed by the parent')
                     #if the connection is closed by the client
@@ -132,18 +190,43 @@ class ServerProfiler:
                 
     async def consumer_producer_handler(self, websocket, path):
         #wheh someone wants to connect to the server node, it must register itseld as a clients
-        #
+        
+        #send all hi to every client connected when the connectiosn reaches 5
+        
         print('Got connection from client host %s and port%s' % (websocket.host, websocket.port))
-        #print(websocket.origin, websocket.request_headers, websocket.response_headers)
-        print([(key, val) for key, val in websocket.__dict__.items() if not callable(val)])
         
         while True:
             #once the websocket is connected send the continue message
             #websocket.send('continue')
             received = await websocket.recv()
+            try:
+                data = json.loads(received)
+            except json.JSONDecodeError:
+                #cant decode the shit
+                await websocket.send('failed to parse the json payload')
+                await websocket.close()
+                continue
+            if isinstance(data, dict):
+                client_id = data.get('id')
+                if not client_id:
+                    await websocket.send("please send the id param.")
+                    await websocket.close()
+                    continue
+            
 
-            print(received, path)
-            await websocket.send('continue')
+            
+            
+            if client_id not in self.clients_alias:
+                print('client failed to authentic')
+                await websocket.send('failed to authorize you')
+                await websocket.close()
+            #if eevrything is fine, now we want all the clients to behave nicely
+            while True:
+                to_sent = '{"current_client" : "%s", "path" : "processing"}' % random.choice(list(self.clients_alias))
+                print(to_sent)
+                await websocket.send(to_sent)
+                message = await websocket.recv()
+                print('got: %s' % message)
 
     def _run_as_agent(self):
         pass
@@ -155,6 +238,9 @@ class ServerProfiler:
         if self.config.get('PROFILER_AGENT', None):
             asyncio.get_event_loop().run_until_complete(self.producer_handler())
         else:
+            sanic_server = self.http_server.create_server('0.0.0.0', port=8000)
+            sanic_task = asyncio.ensure_future(sanic_server)
+
             #run in the parent mode 
             #take the configuration from the command line if provied else use default host and port
             parent_server = websockets.serve(
@@ -163,7 +249,7 @@ class ServerProfiler:
                 self.config.get('PROFILER_PORT', self.DEFAULT_PORT)
             ) 
             asyncio.get_event_loop().\
-            run_until_complete(parent_server)
+            run_until_complete(asyncio.gather(parent_server, sanic_task))
             asyncio.get_event_loop().run_forever()
 
 
