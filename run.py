@@ -35,13 +35,11 @@ class ServerProfiler:
         #get the config object(dict)
         self.config = self._load_args_config()
         self.app = None
-
-        self.client_ws = {}
-        self.clients = set()
         self.clients_alias = None
 
         self.http_server = Sanic(__name__)
         self.master_server = None
+        self.slave_server = None
         self._create_app()
         
 
@@ -124,7 +122,7 @@ class ServerProfiler:
                 sys.exit(0)
             
 
-            self._run_as_agent()
+            
             #also if this is agent node than it needs to act to know the 
         else:
             #if we have to run from the parent, then we need atleast one client in the set of client alias
@@ -137,7 +135,7 @@ class ServerProfiler:
             self.http_server.route('/')(change)
 
             self._load_client_aliases() 
-            self._run_as_parent()
+            
 
     def _load_client_aliases(self):
         if not os.path.exists(self.config['PROFILER_CLIENTS_CONFIG']):
@@ -146,34 +144,7 @@ class ServerProfiler:
         self.clients_alias = set(data['allowed'])
         
 
-    async def producer_handler(self):
-    
-        async with websockets.connect('ws://%s/' % self.config.get('PROFILER_REGISTER_TO')) as websocket:
-            print('Connected to server node %s at port %d' % (websocket.host, websocket.port))
-            while True:
-                try:
-                    id = self.config.get('PROFILER_REGISTER_AS', 'Unknown')
-                    await websocket.send('{"id": "%s", "data": "sample data from %s"}' % (id, id))
-                    await asyncio.sleep(0.5)
-                    
-                except websockets.exceptions.ConnectionClosed:
-                    print('Connection closed by the parent')
-                    #if the connection is closed by the client
-                    break
-                    #again goes to eh outer loop and starts the connection again
-                except Exception:
-                    print('Connection lost')
-                    break
-
-                
    
-
-    def _run_as_agent(self):
-        pass
-    
-    def _run_as_parent(self):
-        pass
-    
     def run(self):
         if self.config.get('PROFILER_AGENT', None):
 
@@ -181,7 +152,7 @@ class ServerProfiler:
                 config=self.config
             )
             asyncio.get_event_loop().run_until_complete(self.slave_server.producer_handler())
-            
+
         else:
 
             sanic_server = self.http_server.create_server('0.0.0.0', port=8000)
@@ -210,5 +181,5 @@ if __name__ == '__main__':
     profiler = ServerProfiler.create_from_cli_args()
     profiler.run()
 
-    #print(profiler.__dict__)
+  
 
