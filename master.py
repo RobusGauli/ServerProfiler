@@ -16,20 +16,34 @@ class MasterServer(object):
         self._end_time = time.time() + self.snapshot_interval
 
         self.data = ''
+
+        self.mobile = None
     
     @property
     def snapshot(self):
         return self._snapshot
+
+    @classmethod
+    def _process_request(cls, mapping):
+        s = dict(mapping)
+        return s.get('mode')
     
-    async def producer_handler(self, websocket):
+    async def producer_handler(self, websocket, path):
         while True:
             await websocket.send(self.data)
 
-    async def consumer_handler(self, websocket):
+    async def consumer_handler(self, websocket, path):
         #wheh someone wants to connect to the server node, it must register itseld as a clients
+        mode = self._process_request(websocket.request_headers._headers)
+        print(mode, type(mode))
+        if mode == 'receiver':
+            self.mobile = websocket
+            
 
         #send all hi to every client connected when the connectiosn reaches 5
-        self._current_connected_clients += 1
+        if mode != 'receiver':
+            self._current_connected_clients += 1
+       
         print('Got connection from client host %s and port%s' % (websocket.host, websocket.port))
         try:
             while True:
@@ -47,25 +61,29 @@ class MasterServer(object):
                     continue
                 if isinstance(data, dict):
                     client_id = data.get('id')
+                    
+                        
+
                     if not client_id:
                         await websocket.send("please send the id param.")
                         self._current_connected_clients -= 1
                         await websocket.close()
                         continue
+                    
                 
+                
+                    elif client_id not in self.clients_alias:
+                        print('client failed to authentic')
+                        await websocket.send('failed to authorize you')
+                        #self._current_connected_clients -= 1
+                        await websocket.close()
+                        continue
+                    
+                print(data, self._current_connected_clients)
+                if self.mobile:
+                    print('trying to send')
+                    await self.mobile.send(received)
 
-                
-                
-                if client_id not in self.clients_alias:
-                    print('client failed to authentic')
-                    await websocket.send('failed to authorize you')
-                    #self._current_connected_clients -= 1
-                    await websocket.close()
-                    continue
-                
-
-                self.data = data
-                print(self.data)
                 if time.time() >= self._end_time:
                     if len(self._captured_clients) != self._current_connected_clients:
                         self._snapshot[client_id] = data
@@ -80,6 +98,7 @@ class MasterServer(object):
 
             
         except websockets.exceptions.ConnectionClosed:
+            raise
             print('Connection closed')
             self._current_connected_clients -= 1
         except Exception:
@@ -88,11 +107,11 @@ class MasterServer(object):
     
     async def handler(self, websocket, path):
         consumer_task = asyncio.ensure_future(
-            self.consumer_handler(websocket)
+            self.consumer_handler(websocket, path)
         )
 
         producer_task = asyncio.ensure_future(
-            self.producer_handler(websocket)
+            self.producer_handler(websocket, path)
         )
         
         done, pending = await asyncio.wait(

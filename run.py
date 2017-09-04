@@ -163,7 +163,7 @@ class ServerProfiler:
                 snapshot_interval=5
             )
             parent_server = websockets.serve(
-                self.master_server.handler,
+                self.master_server.consumer_handler,
                 self.config.get('PROFILER_HOST', self.DEFAULT_HOST),
                 self.config.get('PROFILER_PORT', self.DEFAULT_PORT)
             ) 
