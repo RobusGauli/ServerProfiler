@@ -8,9 +8,10 @@ import os
 import random
 
 import sys
+import time
 
 from sanic import Sanic
-from sanic.response import text
+from sanic.response import text, json as jsonify
 
 class ServerProfiler:
     DEFAULT_PORT = 5000
@@ -35,11 +36,15 @@ class ServerProfiler:
 
         self.client_ws = {}
         self.clients = set()
-        self.clients_alias = set()
-        self.clients_alias.update({'robus', 'rahul', 'ramesh'})
-        self.current_client = 'rahul'
+        self.clients_alias = None
 
         self.http_server = Sanic(__name__)
+        
+        self.interval = 5
+        self._end_time = time.time() + self.interval
+        self._snap_shot = {}
+        self._captured_clients = set()
+        self._current_connected_clients = 0
         self._create_app()
         
 
@@ -131,11 +136,9 @@ class ServerProfiler:
                 sys.exit(0)
             #self.http_server = Sanic(__name__)
             async def change(request):
-                #this will change the current_client
-                self.current_client = random.choice(list(self.clients_alias))
-                print(self.current_client)
-                return text('changed to %s' % self.current_client)
+                return jsonify(self._snap_shot)
             self.http_server.route('/')(change)
+
             self._load_client_aliases() 
             self._run_as_parent()
 
@@ -144,7 +147,7 @@ class ServerProfiler:
             raise ValueError('File not found at the specified path')
         data = json.loads(open(self.config['PROFILER_CLIENTS_CONFIG']).read())
         self.clients_alias = set(data['allowed'])
-        print(self.clients_alias)
+        
 
     async def producer_handler(self):
     
@@ -154,15 +157,15 @@ class ServerProfiler:
                 try:
                     id = self.config.get('PROFILER_REGISTER_AS', 'Unknown')
                     await websocket.send('{"id": "%s", "data": "sample data from %s"}' % (id, id))
-                    await asyncio.sleep(3)
+                    await asyncio.sleep(0.5)
                     
-                    while True:
-                        message = await websocket.recv()
-                        data = json.loads(message)
-                        allowed_current_client = data.get('current_client')
-                        if allowed_current_client == id:
-                            await websocket.send('{"id": "%s", "data": "sample data from %s"}' % (id, id))
-                            await asyncio.sleep(3)
+                    # while True:
+                    #     message = await websocket.recv()
+                    #     data = json.loads(message)
+                    #     allowed_current_client = data.get('current_client')
+                    #     if allowed_current_client == id:
+                    #         await websocket.send('{"id": "%s", "data": "sample data from %s"}' % (id, id))
+                    #         await asyncio.sleep(3)
                     # message = await websocket.recv()
                     # print(message + 'from the server ')
                     # #now parse th message
@@ -192,41 +195,66 @@ class ServerProfiler:
         #wheh someone wants to connect to the server node, it must register itseld as a clients
         
         #send all hi to every client connected when the connectiosn reaches 5
-        
+        self._current_connected_clients += 1
         print('Got connection from client host %s and port%s' % (websocket.host, websocket.port))
-        
-        while True:
-            #once the websocket is connected send the continue message
-            #websocket.send('continue')
-            received = await websocket.recv()
-            try:
-                data = json.loads(received)
-            except json.JSONDecodeError:
-                #cant decode the shit
-                await websocket.send('failed to parse the json payload')
-                await websocket.close()
-                continue
-            if isinstance(data, dict):
-                client_id = data.get('id')
-                if not client_id:
-                    await websocket.send("please send the id param.")
+        try:
+            while True:
+                #once the websocket is connected send the continue message
+                #websocket.send('continue')
+                print(self._current_connected_clients)
+                received = await websocket.recv()
+                try:
+                    data = json.loads(received)
+                except json.JSONDecodeError:
+                    #cant decode the shit
+                    await websocket.send('failed to parse the json payload')
+                    self._current_connected_clients -= 1
                     await websocket.close()
                     continue
-            
+                if isinstance(data, dict):
+                    client_id = data.get('id')
+                    if not client_id:
+                        await websocket.send("please send the id param.")
+                        self._current_connected_clients -= 1
+                        await websocket.close()
+                        continue
+                
 
-            
-            
-            if client_id not in self.clients_alias:
-                print('client failed to authentic')
-                await websocket.send('failed to authorize you')
-                await websocket.close()
-            #if eevrything is fine, now we want all the clients to behave nicely
-            while True:
-                to_sent = '{"current_client" : "%s", "path" : "processing"}' % random.choice(list(self.clients_alias))
-                print(to_sent)
-                await websocket.send(to_sent)
-                message = await websocket.recv()
-                print('got: %s' % message)
+                
+                
+                if client_id not in self.clients_alias:
+                    print('client failed to authentic')
+                    await websocket.send('failed to authorize you')
+                    #self._current_connected_clients -= 1
+                    await websocket.close()
+                    continue
+                # #if eevrything is fine, now we want all the clients to behave nicely
+                # while True:
+                #     to_sent = '{"current_client" : "%s", "path" : "processing"}' % random.choice(list(self.clients_alias))
+                #     print(to_sent)
+                #     await websocket.send(to_sent)
+                #     message = await websocket.recv()
+                #     print('got: %s' % message)
+
+                print('success', data)
+                if time.time() >= self._end_time:
+                    if len(self._captured_clients) != self._current_connected_clients:
+                        self._snap_shot[client_id] = data
+                        self._snap_shot[client_id]['id']+= str(time.time()) 
+                        self._captured_clients.add(client_id)
+                    else:
+                    #self._snap_shot = data
+                    #print('took snapshot')
+                        self._end_time = time.time() + self.interval
+                        self._captured_clients.clear()
+
+                
+        except websockets.exceptions.ConnectionClosed:
+            print('Connection closed')
+            self._current_connected_clients -= 1
+        except Exception:
+            self._current_connected_clients -= 1
+            raise 
 
     def _run_as_agent(self):
         pass
