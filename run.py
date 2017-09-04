@@ -22,7 +22,8 @@ class ServerProfiler:
     
     @classmethod
     def create_from_cli_args(cls):
-        return cls(config=None)
+        self = cls(config=None)
+        return self
 
     def __init__(self, config=None):
         #this object will kep track of all the nodes
@@ -43,10 +44,6 @@ class ServerProfiler:
         self._create_app()
         
 
-
-    
-    async def change(self, request):
-        return text('hi there')
 
     def _load_args_config(self):
         #return a configuration dictionary
@@ -166,7 +163,7 @@ class ServerProfiler:
                 snapshot_interval=5
             )
             parent_server = websockets.serve(
-                self.master_server.consumer_producer_handler,
+                self.master_server.handler,
                 self.config.get('PROFILER_HOST', self.DEFAULT_HOST),
                 self.config.get('PROFILER_PORT', self.DEFAULT_PORT)
             ) 

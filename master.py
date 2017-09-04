@@ -1,6 +1,7 @@
 import json
 import time
 import websockets
+import asyncio
 
 class MasterServer(object):
     '''A websocket server that recieves data from all the agent nodes and collect the info'''
@@ -13,12 +14,18 @@ class MasterServer(object):
         self._captured_clients = set()
         
         self._end_time = time.time() + self.snapshot_interval
+
+        self.data = ''
     
     @property
     def snapshot(self):
         return self._snapshot
+    
+    async def producer_handler(self, websocket):
+        while True:
+            await websocket.send(self.data)
 
-    async def consumer_producer_handler(self, websocket, path):
+    async def consumer_handler(self, websocket):
         #wheh someone wants to connect to the server node, it must register itseld as a clients
 
         #send all hi to every client connected when the connectiosn reaches 5
@@ -57,7 +64,8 @@ class MasterServer(object):
                     continue
                 
 
-                print('success', data)
+                self.data = data
+                print(self.data)
                 if time.time() >= self._end_time:
                     if len(self._captured_clients) != self._current_connected_clients:
                         self._snapshot[client_id] = data
@@ -77,3 +85,20 @@ class MasterServer(object):
         except Exception:
             self._current_connected_clients -= 1
             raise 
+    
+    async def handler(self, websocket, path):
+        consumer_task = asyncio.ensure_future(
+            self.consumer_handler(websocket)
+        )
+
+        producer_task = asyncio.ensure_future(
+            self.producer_handler(websocket)
+        )
+        
+        done, pending = await asyncio.wait(
+            [consumer_task, producer_task],
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+
+        for task in pending:
+            task.cancel()

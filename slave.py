@@ -16,7 +16,7 @@ class SlaveServer(object):
             while True:
                 try:
                     id = self.config.get('PROFILER_REGISTER_AS', 'Unknown')
-                    await websocket.send('{"id": "%s", "data": "sample data from %s"}' % (id, id))
+                    await websocket.send('{"id": "%s", "data": "sample data from %s", "slave": "true"}' % (id, id))
                     await asyncio.sleep(0.5)
                     
                 except websockets.exceptions.ConnectionClosed:
