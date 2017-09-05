@@ -2,17 +2,23 @@ import json
 import websockets
 import asyncio
 
+from serverprofiler.node import Node
+
 class SlaveServer(object):
     '''This acts as a slave node in the cluster, whose job is to send the data to the master node.'''
 
     def __init__(self, config):
         self.config = config
+        self.node = None
     
     
     async def producer_handler(self):
+        '''This will send the data to the master node. This information will be the slave information'''
+        
         if self.config.get('PROFILER_REGISTER_AS') == 'client':
             extra_headers = [('mode', 'receiver')]
         else:
+            self.node = Node(self.config.get('PROFILER_REGISTER_AS'))
             extra_headers = [('mode', 'sender')]
         while True:
             async with websockets.connect('ws://%s/' % self.config.get('PROFILER_REGISTER_TO'), extra_headers=extra_headers) as websocket:
@@ -24,8 +30,8 @@ class SlaveServer(object):
                             message = await websocket.recv()
                             print(message)
                         else:
-                            await websocket.send('{"id": "%s", "data": "sample data from %s", "slave": "true"}' % (id, id))
-                            await asyncio.sleep(0.3)
+                            await websocket.send(json.dumps(self.node.get_info()))
+                            await asyncio.sleep(2)
                         
                     except websockets.exceptions.ConnectionClosed:
                         #raise
