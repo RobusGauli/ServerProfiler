@@ -45,11 +45,13 @@ class MasterServer(object):
             self._current_connected_clients += 1
        
         print('Got connection from client host %s and port%s' % (websocket.host, websocket.port))
-        try:
-            while True:
-                #once the websocket is connected send the continue message
-                #websocket.send('continue')
+        
+        while True:
+            #once the websocket is connected send the continue message
+            #websocket.send('continue')
+            try:
                 print(self._current_connected_clients)
+                print('right ehere')
                 received = await websocket.recv()
                 try:
                     data = json.loads(received)
@@ -97,14 +99,18 @@ class MasterServer(object):
                         self._captured_clients.clear()
 
             
-        except websockets.exceptions.ConnectionClosed:
-            raise
-            print('Connection closed')
-            self._current_connected_clients -= 1
-        except Exception:
-            self._current_connected_clients -= 1
-            raise 
-    
+            except websockets.exceptions.ConnectionClosed:
+                #raise
+                print('Connection closed')
+                #await websocket.close()
+                self._current_connected_clients -= 1
+                break
+            except Exception:
+                #await websocket.close()
+                self._current_connected_clients -= 1
+                #raise
+                break 
+
     async def handler(self, websocket, path):
         consumer_task = asyncio.ensure_future(
             self.consumer_handler(websocket, path)
