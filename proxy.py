@@ -66,13 +66,17 @@ class Proxy(object):
                     print(self.received_data)
                     
                 except websockets.exceptions.ConnectionClosed:
-                    raise
+                    #raise
                     print('Connection closed by the parent')
                     #if the connection is closed by the client
                     break
                     #again goes to eh outer loop and starts the connection again
+                except KeyboardInterrupt:
+                    print('key board pressed')
+                    #await websocket.close()
+                    break
                 except Exception:
-                    raise
+                    #raise
                     print('Connection lost')
                     break
     

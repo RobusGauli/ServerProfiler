@@ -3,6 +3,7 @@ import time
 import websockets
 import asyncio
 
+
 class MasterServer(object):
     '''A websocket server that recieves data from all the agent nodes and collect the info'''
 
@@ -34,12 +35,13 @@ class MasterServer(object):
 
     async def consumer_handler(self, websocket, path):
         #wheh someone wants to connect to the server node, it must register itseld as a clients
+        self._captured_clients.add(websocket)
         mode = self._process_request(websocket.request_headers._headers)
         print(mode, type(mode))
         if mode == 'receiver':
             self.mobile = websocket
             
-
+        print([(key, val) for key, val in websocket.__dict__.items()])
         #send all hi to every client connected when the connectiosn reaches 5
         if mode != 'receiver':
             self._current_connected_clients += 1
@@ -84,7 +86,10 @@ class MasterServer(object):
                 print(data, self._current_connected_clients)
                 if self.mobile:
                     print('trying to send')
-                    await self.mobile.send(received)
+                    try:
+                        await self.mobile.send(received)
+                    except websockets.exceptions.ConnectionClosed:
+                        self.mobile = None
 
                 if time.time() >= self._end_time:
                     if len(self._captured_clients) != self._current_connected_clients:
