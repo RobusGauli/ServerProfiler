@@ -7,7 +7,7 @@ import argparse
 class Proxy(object):
     '''A proxy  server that recieves data from all the master nodes and acts as a interface between mobile client'''
     DEFAULT_PORT = '5000'
-    DEFAULT_HOST = 'localhost'
+    DEFAULT_HOST = '0.0.0.0'
 
     @classmethod
     def from_cli(cls):
