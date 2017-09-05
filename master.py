@@ -37,11 +37,11 @@ class MasterServer(object):
         #wheh someone wants to connect to the server node, it must register itseld as a clients
         self._captured_clients.add(websocket)
         mode = self._process_request(websocket.request_headers._headers)
-        print(mode, type(mode))
+        #print(mode, type(mode))
         if mode == 'receiver':
             self.mobile = websocket
             
-        print([(key, val) for key, val in websocket.__dict__.items()])
+        #print([(key, val) for key, val in websocket.__dict__.items()])
         #send all hi to every client connected when the connectiosn reaches 5
         if mode != 'receiver':
             self._current_connected_clients += 1
@@ -52,8 +52,8 @@ class MasterServer(object):
             #once the websocket is connected send the continue message
             #websocket.send('continue')
             try:
-                print(self._current_connected_clients)
-                print('right ehere')
+                #print(self._current_connected_clients)
+                #print('right ehere')
                 received = await websocket.recv()
                 try:
                     data = json.loads(received)
@@ -83,7 +83,7 @@ class MasterServer(object):
                         await websocket.close()
                         continue
                     
-                print(data, self._current_connected_clients)
+                #print(data, self._current_connected_clients)
                 if self.mobile:
                     print('trying to send')
                     try:

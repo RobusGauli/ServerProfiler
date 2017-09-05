@@ -87,13 +87,19 @@ class Proxy(object):
             while True:
                 #any connection 
                 await websocket.send(self.received_data)
+                await asyncio.sleep(0.8)
 
         except Exception:
             raise
     
     def run(self):
-         
-        asyncio.get_event_loop().run_until_complete(self.receiver())
+        proxy_server = websockets.serve(
+            self.proxy_sender,
+            'localhost',
+            9000
+        )
+        asyncio.get_event_loop().run_until_complete(asyncio.gather(self.receiver(), proxy_server))
+        asyncio.get_event_loop().run_forever()
 
         # else:
 
