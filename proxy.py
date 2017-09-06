@@ -6,8 +6,8 @@ import argparse
 
 class Proxy(object):
     '''A proxy  server that recieves data from all the master nodes and acts as a interface between mobile client'''
-    DEFAULT_PORT = '5000'
-    DEFAULT_HOST = '0.0.0.0'
+    DEFAULT_PORT = 5000
+    DEFAULT_HOST = 'localhost'
 
     @classmethod
     def from_cli(cls):
@@ -56,7 +56,7 @@ class Proxy(object):
         extra_headers = [('mode', 'receiver')]
         
            
-        async with websockets.connect('ws://%s:%s/' % (self.config.get('PROFILER_HOST'), self.config.get('PROFILER_PORT')), 
+        async with websockets.connect('ws://%s:%s/' % (self.config.get('PROFILER_HOST') or self.DEFAULT_HOST, self.config.get('PROFILER_PORT') or self.DEFAULT_PORT), 
             extra_headers=extra_headers) as websocket:
             print('Connected to server node %s at port %d' % (websocket.host, websocket.port))
             while True:
@@ -95,7 +95,7 @@ class Proxy(object):
     def run(self):
         proxy_server = websockets.serve(
             self.proxy_sender,
-            'localhost',
+            '0.0.0.0',
             9000
         )
         asyncio.get_event_loop().run_until_complete(asyncio.gather(self.receiver(), proxy_server))
