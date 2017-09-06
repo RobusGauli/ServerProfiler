@@ -129,7 +129,7 @@ class ServerProfiler:
             #self.http_server = Sanic(__name__)
             async def change(request):
                 return jsonify(self.master_server.snapshot)
-            self.http_server.route('/')(change)
+            self.http_server.route('/nodes')(change)
 
             self._load_client_aliases() 
             

@@ -2,6 +2,7 @@ import json
 import time
 import websockets
 import asyncio
+import platform
 
 
 class MasterServer(object):
@@ -94,7 +95,8 @@ class MasterServer(object):
                 if time.time() >= self._end_time:
                     if len(self._captured_clients) != self._current_connected_clients:
                         self._snapshot[client_id] = data
-                        self._snapshot[client_id]['id']+= str(time.time()) 
+                        self._snapshot[client_id]['id']+= str(time.time())
+                        self._snapshot[client_id]['platform'] = platform.platform() 
                         self._captured_clients.add(client_id)
                     else:
                     #self._snap_shot = data

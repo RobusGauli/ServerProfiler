@@ -57,15 +57,27 @@ class Node(object):
             else:
                 yield pinfo
     
+    def _network(self):
+        _net = psutil.net_io_counters()
+        _n = {
+            'bs': format(_net.bytes_sent / (1024 * 1024), '0.2f'),
+            'br': format(_net.bytes_recv / (1024 * 1024), '0.2f'),
+            'ps': _net.packets_sent,
+            'pr': _net.packets_recv
+        }
+        return _n
+    
     def get_info(self):
         return {
             'id': self.name,
             'payload': {
                 'cpu': self._cpu(),
                 'memory': self._memory(),
-                'processes': list(itertools.islice(self._processes(), 20))
+                'processes': list(itertools.islice(self._processes(), 20)),
+                'network': self._network()
             } 
         }
+    
 
 
 
