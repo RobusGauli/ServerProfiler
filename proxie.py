@@ -10,35 +10,27 @@ class WebSocketProxy(object):
     
 
 
-    @asyncio.coroutine
-    def proxy_dispatcher(self, proxy_websocket, path):
-
-        proxied_websocket = yield from websockets.connect(self.proxied_url_value)
-        yield from self.process_requests(proxy_websocket, proxied_websocket)
-    
-    def connect_to_proxy_server(self, proxy_websocket, proxied_url_value):
-        try:
-            proxied_web_socket = yield from websockets.connect(proxied_url_value)
-        except Exception:
-            raise
-        return proxied_web_socket
-
-    def process_requests(self, proxy_websocket, proxied_websocket):
-        while True:
-            request_for_proxy = yield from proxy_websocket.recv()
-            yield from proxied_websocket.send(request_for_proxy)
     
     def run(self):
-        server = websockets.serve(self.dispatcher, self.host, self.port)
+        server = websockets.serve(self.dispatcher, self.proxied_host, self.proxied_port)
         asyncio.get_event_loop().run_until_complete(server)
         asyncio.get_event_loop().run_forever()
 
     
+    def dispatch(self, middleware_websocket):
+        @asyncio.coroutine
+        def dispatcher(self, client_websocket, path):
+            while True:
+                val = yield from middleware_websocket.recv()
+                print(val)
+                yield from client_websocket.send(val)
+        return dispatcher
+
     @asyncio.coroutine
     def dispatcher(self, client_websocket, path):
 
         #some client wants to connect then i will first go to the master server create a new websocket connecion
-        middleware_websocket = yield from websockets.connect('ws://localhost:5000/')
+        middleware_websocket = yield from websockets.connect('ws://localhost:5000/', extra_headers=[('mode', 'receiver')])
         yield from self.serve_client(client_websocket, middleware_websocket)
     
 
@@ -47,8 +39,36 @@ class WebSocketProxy(object):
             #first get the value from the middleware socket
             try:
                 val_from_middleware = yield from middlerwaire_websocket.recv()
+                print(val_from_middleware)
             #now send that ot the  client
                 yield from client_websocket.send(val_from_middleware)
             except Exception:
                 raise
+
+class W(object):
+
+    @asyncio.coroutine
+    def middleware(self):
+        middleware_socket = yield from websockets.connect('ws://localhost:5000/', extra_headers = [('mode', 'receiver')])
+        return middleware_socket
+
+    def dispatch(self, middleware_websocket):
+        @asyncio.coroutine
+        def dispatcher(client, path):
+            while True:
+                msg = yield from middleware_websocket.recv()
+                print(msg)
+                yield from client.send(msg)
+        return dispatcher
+
+    def run(self):
+        middleware_websocket = asyncio.get_event_loop().run_until_complete(self.middleware())
+        coroutine = self.dispatch(middleware_websocket)
+        server = websockets.serve(coroutine, 'localhost', 12000)
+        asyncio.get_event_loop().run_until_complete(server)
+        asyncio.get_event_loop().run_forever()
+            
     
+
+if __name__ == '__main__':
+    W().run()
