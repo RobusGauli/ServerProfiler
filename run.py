@@ -11,6 +11,7 @@ import time
 
 from sanic import Sanic
 from sanic.response import text, json as jsonify
+from sanic_cors import CORS, cross_origin
 
 from serverprofiler.master import MasterServer
 from serverprofiler.slave import SlaveServer
@@ -39,6 +40,8 @@ class ServerProfiler:
         self.clients_alias = None
 
         self.http_server = Sanic(__name__)
+        CORS(self.http_server)
+
         self.master_server = None
         self.slave_server = None
         self._create_app()
