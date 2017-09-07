@@ -5,6 +5,7 @@ import platform
 import itertools
 import pwd
 
+
 user_name = lambda: pwd.getpwuid(os.getuid()).pw_name
 
 uname = os.uname()
@@ -77,7 +78,10 @@ class Node(object):
                 'cpu': self._cpu(),
                 'memory': self._memory(),
                 'processes': list(itertools.islice(self._processes(), 20)),
-                'network': self._network()
+                'network': self._network(),
+                'platform': self.platform_name,
+                'p_cores': self.p_num_cores,
+                'l_cors': self.l_num_cores
             } 
         }
     
