@@ -63,7 +63,9 @@ class Proxy(object):
                 try:
                     message = await websocket.recv()
                     self.received_data = message
-                    print(self.received_data)
+                    k = json.loads(message)
+
+                    print(k['id'])
                     
                 except websockets.exceptions.ConnectionClosed:
                     #raise
@@ -82,15 +84,19 @@ class Proxy(object):
     
     
     async def proxy_sender(self, websocket, path):
+        '''This accepts the mobile client '''
         #wheh someone wants to connect to the server node, it must register itseld as a clients
-        try:
-            while True:
-                #any connection 
-                await websocket.send(self.received_data)
-                await asyncio.sleep(0)
+        async with websockets.connect('ws://localhost:5000/') as ws:
+            try:
+                while True:
+                    #any connection 
+                    print('asd')
+                    #message = await ws.recv()
+                    await websocket.send('sd')
+                    
 
-        except Exception:
-            raise
+            except Exception:
+                raise
     
     def run(self):
         proxy_server = websockets.serve(
