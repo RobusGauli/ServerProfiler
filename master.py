@@ -19,7 +19,7 @@ class MasterServer(object):
 
         self.data = ''
 
-        self.mobile = None
+        self.mobiles= []
     
     @property
     def snapshot(self):
@@ -40,7 +40,8 @@ class MasterServer(object):
         mode = self._process_request(websocket.request_headers._headers)
         #print(mode, type(mode))
         if mode == 'receiver':
-            self.mobile = websocket
+            self.mobiles.append(websocket)
+            
             
         #print([(key, val) for key, val in websocket.__dict__.items()])
         #send all hi to every client connected when the connectiosn reaches 5
@@ -60,6 +61,7 @@ class MasterServer(object):
                     data = json.loads(received)
                 except json.JSONDecodeError:
                     #cant decode the shit
+                    
                     await websocket.send('failed to parse the json payload')
                     self._current_connected_clients -= 1
                     await websocket.close()
@@ -85,12 +87,15 @@ class MasterServer(object):
                         continue
                     
                 #print(data, self._current_connected_clients)
-                if self.mobile:
-                    print('trying to send')
-                    try:
-                        await self.mobile.send(received)
-                    except websockets.exceptions.ConnectionClosed:
-                        self.mobile = None
+                # if self.mobile:
+                #     print('trying to send')
+                #     try:
+                #         await self.mobile.send(received)
+                #     except websockets.exceptions.ConnectionClosed:
+                #         self.mobile = None
+                for mobile in self.mobiles:
+                    await mobile.send(received)
+                
 
                 if time.time() >= self._end_time:
                     if len(self._captured_clients) != self._current_connected_clients:

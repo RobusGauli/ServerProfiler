@@ -63,6 +63,7 @@ class W(object):
 
     def run(self):
         middleware_websocket = asyncio.get_event_loop().run_until_complete(self.middleware())
+        print(middleware_websocket)
         coroutine = self.dispatch(middleware_websocket)
         server = websockets.serve(coroutine, 'localhost', 12000)
         asyncio.get_event_loop().run_until_complete(server)
