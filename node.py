@@ -3,6 +3,9 @@ import os
 import psutil
 import platform
 import itertools
+import pwd
+
+user_name = lambda: pwd.getpwuid(os.getuid()).pw_name
 
 uname = os.uname()
 
@@ -49,7 +52,7 @@ class Node(object):
         return memory_info
     
     def _processes(self):
-        for process in self.filter_process(psutil.process_iter(), 'user'):
+        for process in self.filter_process(psutil.process_iter(), user_name()):
             try:
                 pinfo = process.as_dict(attrs=self._process_attrs)
             except psutil.NoSuchProcess:
