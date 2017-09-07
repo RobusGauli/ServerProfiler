@@ -87,7 +87,7 @@ class Proxy(object):
             while True:
                 #any connection 
                 await websocket.send(self.received_data)
-                await asyncio.sleep(0.8)
+                await asyncio.sleep(1)
 
         except Exception:
             raise

@@ -31,7 +31,7 @@ class SlaveServer(object):
                             print(message)
                         else:
                             await websocket.send(json.dumps(self.node.get_info()))
-                            await asyncio.sleep(2)
+                            await asyncio.sleep(1)
                         
                     except websockets.exceptions.ConnectionClosed:
                         #raise
