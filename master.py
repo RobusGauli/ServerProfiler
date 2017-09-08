@@ -39,8 +39,9 @@ class MasterServer(object):
         self._captured_clients.add(websocket)
         mode = self._process_request(websocket.request_headers._headers)
         #print(mode, type(mode))
-        if mode == 'receiver':
+        if mode == 'receiver' or mode == None:
             self.mobiles.append(websocket)
+        print(mode)
             
             
         #print([(key, val) for key, val in websocket.__dict__.items()])
@@ -94,7 +95,11 @@ class MasterServer(object):
                 #     except websockets.exceptions.ConnectionClosed:
                 #         self.mobile = None
                 for mobile in self.mobiles:
-                    await mobile.send(received)
+                    try:
+                        await mobile.send(received)
+                    except Exception:
+                        pass
+                        #handler heree remove the clien from the connectnios
                 
 
                 if time.time() >= self._end_time:
