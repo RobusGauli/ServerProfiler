@@ -4,7 +4,7 @@ import websockets
 import asyncio
 import platform
 
-
+#hi from th bidirection
 class MasterServer(object):
     '''A websocket server that recieves data from all the agent nodes and collect the info'''
 
