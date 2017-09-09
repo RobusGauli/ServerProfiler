@@ -1,4 +1,5 @@
 {
 	
-    "allowed" : ["robus","rinka", "rahul", "ramesh", "prabin", "shiva", "anuj", "aarjan", "love", "Drose", "Robus", "Hris"]
+    "allowed" : ["robus","rinka", "rahul", "ramesh", "prabin", "shiva", "anuj", "aarjan", "love", "Drose", "Robus", "Hris"],
+	"auth" : "HMAC"
 }
