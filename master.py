@@ -30,11 +30,13 @@ class MasterServer(object):
         s = dict(mapping)
         return s.get('mode')
     
-    async def producer_handler(self, websocket, path):
+    async def consumer_handler(self, websocket):
         while True:
-            await websocket.send(self.data)
+            message = await websocket.recv()
+            print(message)
+            await asyncio.sleep(2)
 
-    async def consumer_handler(self, websocket, path):
+    async def producer_handler(self, websocket):
         #wheh someone wants to connect to the server node, it must register itseld as a clients
         self._captured_clients.add(websocket)
         mode = self._process_request(websocket.request_headers._headers)
@@ -130,11 +132,11 @@ class MasterServer(object):
 
     async def handler(self, websocket, path):
         consumer_task = asyncio.ensure_future(
-            self.consumer_handler(websocket, path)
+            self.consumer_handler(websocket)
         )
 
         producer_task = asyncio.ensure_future(
-            self.producer_handler(websocket, path)
+            self.producer_handler(websocket)
         )
         
         done, pending = await asyncio.wait(
